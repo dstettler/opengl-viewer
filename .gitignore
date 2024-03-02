@@ -1,0 +1,9 @@
+glew/
+glfw/
+imgui/
+imgui.ini
+build/
+release/
+debug/
+framesout/
+.vscode/
