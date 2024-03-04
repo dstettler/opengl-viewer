@@ -3,6 +3,7 @@ glfw/
 glm/
 data/
 imgui/
+data/
 imgui.ini
 build/
 release/
