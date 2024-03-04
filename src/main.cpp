@@ -2,8 +2,12 @@
 #include <GL/glew.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include <glm/vec3.hpp>
 
+#include <cmath>
 #include <iostream>
+#include <fstream>
+#include <string>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -20,10 +24,27 @@ const char *vertexShaderSource = "#version 330 core\n"
     "}\0";
 const char *fragmentShaderSource = "#version 330 core\n"
     "out vec4 FragColor;\n"
+    "uniform vec4 setColor;\n"
     "void main()\n"
     "{\n"
-    "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+    "   FragColor = setColor;\n"
     "}\n\0";
+
+std::string readFileToString(std::string filename)
+{
+    std::ifstream stream(filename);
+    std::string builder = std::string();
+    std::string line;
+    while (getline(stream, line))
+    {
+        builder += line + '\n';
+    }
+
+    stream.close();
+    std::cout << builder << std::endl;
+
+    return builder;
+}
 
 int main()
 {
@@ -58,7 +79,9 @@ int main()
     // ------------------------------------
     // vertex shader
     unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    std::string vertexSource = readFileToString("D:/Documents/GitHub/opengl-viewer/source.vs");
+    const char* vertexSourceConst = vertexSource.c_str();
+    glShaderSource(vertexShader, 1, &vertexSourceConst, NULL);
     glCompileShader(vertexShader);
     // check for shader compile errors
     int success;
@@ -71,7 +94,9 @@ int main()
     }
     // fragment shader
     unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    std::string fragmentSource = readFileToString("D:/Documents/GitHub/opengl-viewer/source.fs");
+    const char* fragmentSourceConst = fragmentSource.c_str();
+    glShaderSource(fragmentShader, 1, &fragmentSourceConst, NULL);
     glCompileShader(fragmentShader);
     // check for shader compile errors
     glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
@@ -145,6 +170,12 @@ int main()
 
         // draw our first triangle
         glUseProgram(shaderProgram);
+
+        float currentTime = glfwGetTime();
+        float greenVal = std::sin(currentTime) / 2.0f + 0.5f;
+        int colorLocation = glGetUniformLocation(shaderProgram, "setColor");
+        glUniform4f(colorLocation, 0.0f, greenVal, 0.0f, 0.1f);
+
         glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
         glDrawArrays(GL_TRIANGLES, 0, numVertices);
         // glBindVertexArray(0); // unbind our VA no need to unbind it every time 

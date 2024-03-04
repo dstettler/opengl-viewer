@@ -2,7 +2,7 @@
 A simple guide for building the OpenGL Viewer.
 
 ## Environment Setup
-Place your GLFW and imgui source files in the `glfw/` and `imgui/` directories, respectively, such that its LICENSE file
+Place your GLFW, GLM, and imgui source files in the `glfw/`, `glm/`, and `imgui/` directories, respectively, such that its LICENSE file
 is at the root each the directory. 
 For convenience, I have already included the sources in the .tar.gz archive.
 
@@ -45,11 +45,11 @@ I've tested it to work on both Arch and Ubuntu 22.
 
 ## Build Steps (with Ninja)
 If you have `ninja` already on your PATH, you can run `build.sh` to build.
-The output will be: `build/Raytracer`
+The output will be: `build/debug/OpenGLViewerd`
 
 ## Build Steps (without Ninja)
 Run `cmake -B build` to generate the CMake build files, and then run `cmake --build build` to link and compile.
-As with Ninja, the output will be: `build/Raytracer`
+As with Ninja, the output will be: `build/OpenGLViewer`
 
 ## Usage
 In order to export frames, ensure you have a directory named `framesout` on the current working directory.

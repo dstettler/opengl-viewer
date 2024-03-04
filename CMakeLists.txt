@@ -25,6 +25,10 @@ endif()
 # We'll build glfw ourselves regardless of platform
 add_subdirectory(glfw)
 
+add_subdirectory(glm)
+
+find_package(glm CONFIG REQUIRED)
+
 include_directories(include)
 include_directories(imgui)
 include_directories(imgui/backends)
@@ -56,9 +60,9 @@ add_executable(OpenGLViewer ${PROJECT_SOURCES})
 
 # Link libraries
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    target_link_libraries(OpenGLViewer GLEW::glew glfw)
+    target_link_libraries(OpenGLViewer GLEW::glew glfw glm::glm)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-target_link_libraries(OpenGLViewer ${X11_LIBRARIES} ${OPENGL_LIBRARIES} GLEW::glew glfw)
+target_link_libraries(OpenGLViewer ${X11_LIBRARIES} ${OPENGL_LIBRARIES} GLEW::glew glfw glm::glm)
 endif()
 
 # I do not know if the MACOSX properties are proper or not, as I cannot test them.
