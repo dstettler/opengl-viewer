@@ -1,6 +1,7 @@
 glew/
 glfw/
 imgui/
+data/
 imgui.ini
 build/
 release/
