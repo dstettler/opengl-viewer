@@ -122,13 +122,13 @@ int main()
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     float vertices[] = {
-        -0.5f, -.25f, 0.0f, // left  
-         0.5f, -.75f, 0.0f, // right 
-         0.0f,  0.5f, 0.0f, // top   
+        -0.5f, -.25f, 0.0f, 1.0f, 0.0f, 0.0f,  // left  
+         0.5f, -.75f, 0.0f, 0.0f, 1.0f, 0.0f, // right 
+         0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f, // top   
 
-        -0.5f, -0.5f, 0.0f, // left  
-         0.5f, -0.5f, 0.0f, // right 
-         0.0f, -1.0f, 0.0f  // bottom
+        -0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 0.0f, // left  
+         0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, // right 
+         0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f // bottom
     };
     unsigned int numVertices = sizeof(vertices)/3;
 
@@ -141,8 +141,13 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    // position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    // color
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
 
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
@@ -171,10 +176,10 @@ int main()
         // draw our first triangle
         glUseProgram(shaderProgram);
 
-        float currentTime = glfwGetTime();
-        float greenVal = std::sin(currentTime) / 2.0f + 0.5f;
-        int colorLocation = glGetUniformLocation(shaderProgram, "setColor");
-        glUniform4f(colorLocation, 0.0f, greenVal, 0.0f, 0.1f);
+        // float currentTime = glfwGetTime();
+        // float greenVal = std::sin(currentTime) / 2.0f + 0.5f;
+        // int colorLocation = glGetUniformLocation(shaderProgram, "setColor");
+        // glUniform4f(colorLocation, 0.0f, greenVal, 0.0f, 0.1f);
 
         glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
         glDrawArrays(GL_TRIANGLES, 0, numVertices);
