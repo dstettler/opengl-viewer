@@ -79,7 +79,7 @@ int main()
     // ------------------------------------
     // vertex shader
     unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    std::string vertexSource = readFileToString("D:/Documents/GitHub/opengl-viewer/source.vs");
+    std::string vertexSource = readFileToString("D:/Documents/GitHub/opengl-viewer/shaders/source.vs");
     const char* vertexSourceConst = vertexSource.c_str();
     glShaderSource(vertexShader, 1, &vertexSourceConst, NULL);
     glCompileShader(vertexShader);
@@ -94,7 +94,7 @@ int main()
     }
     // fragment shader
     unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    std::string fragmentSource = readFileToString("D:/Documents/GitHub/opengl-viewer/source.fs");
+    std::string fragmentSource = readFileToString("D:/Documents/GitHub/opengl-viewer/shaders/source.fs");
     const char* fragmentSourceConst = fragmentSource.c_str();
     glShaderSource(fragmentShader, 1, &fragmentSourceConst, NULL);
     glCompileShader(fragmentShader);
