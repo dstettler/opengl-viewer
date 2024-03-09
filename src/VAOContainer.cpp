@@ -191,7 +191,12 @@ unsigned int VAOContainer::getNumVerts()
 
 void VAOContainer::rotateMesh(float theta)
 {
-
+    // Implement based on axis
+    // for (auto iter = verts.begin(); iter != verts.end(); ++iter)
+    //     *iter = 
+    
+    // Re-generate and assign arrays
+    init(false);    
 }
 
 void VAOContainer::scaleMesh(float factor)

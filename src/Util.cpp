@@ -1,9 +1,13 @@
 #include "Util.h"
 
+#include <cmath>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
 std::vector<std::string> splitStringAtDelim(std::string str, char delimiter)
 {
@@ -30,3 +34,10 @@ std::string readFileToString(std::string filename)
 
     return builder;
 }
+
+// Steal math from raytracer where I already did this
+// glm::vec3 rotateAboutZ(float theta)
+// {
+//     // glm::vec4 multiplier(std::cos(theta), -(std::sin(theta)), 0, 0, std::sin(theta))
+    
+// }
