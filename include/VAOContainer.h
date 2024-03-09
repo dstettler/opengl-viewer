@@ -47,6 +47,9 @@ class VAOContainer
     std::shared_ptr<float[]> getVertsArray();
     std::shared_ptr<unsigned int[]> getIndicesArray();
     unsigned int getNumVerts();
+    bool getWireframe() { return wireframe; };
+
+    void setWireframe(bool wireframeStatus) { wireframe = wireframeStatus; };
     
     void scaleMesh(float factor);
     void rotateMesh(float theta);

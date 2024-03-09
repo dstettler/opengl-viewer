@@ -25,7 +25,13 @@ const std::string MODEL_FILENAME = "D:/Documents/GitHub/opengl-viewer/data/cube_
 const std::string VERTEX_SHADER_FILE = "D:/Documents/GitHub/opengl-viewer/shaders/source.vs";
 const std::string FRAGMENT_SHADER_FILE = "D:/Documents/GitHub/opengl-viewer/shaders/source.fs";
 
-bool zoomIn = false, lastZoomIn = false, zoomOut = false, lastZoomOut = false;
+// Latches for movement keys
+bool zoomIn = false, 
+    lastZoomIn = false, 
+    zoomOut = false, 
+    lastZoomOut = false, 
+    wireframe, 
+    lastWireframe = false;
 
 int main()
 {
@@ -201,8 +207,20 @@ void processInput(GLFWwindow *window, VAOContainer *container)
         zoomOut = false;
     }
 
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    {
+        wireframe = true;
+        if (wireframe && !lastWireframe)
+            container->setWireframe(!container->getWireframe());
+    }
+    else if (glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE)
+    {
+        wireframe = false;
+    }
+
     lastZoomIn = zoomIn;
-    lastZoomOut = zoomOut; 
+    lastZoomOut = zoomOut;
+    lastWireframe = wireframe;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

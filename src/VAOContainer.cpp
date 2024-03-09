@@ -105,9 +105,6 @@ void VAOContainer::init(bool fullDeinit)
     // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
     glBindVertexArray(0);
 
-    if (wireframe)
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
     isInit = true;
 }
 
@@ -125,6 +122,11 @@ void VAOContainer::load(std::string filename, unsigned int* VAO, unsigned int* V
 
 void VAOContainer::drawGlMesh()
 {
+    if (wireframe)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    else 
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
     glBindVertexArray(*vao);
     glDrawElements(GL_TRIANGLES, faces.size() * 3, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
