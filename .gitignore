@@ -1,6 +1,7 @@
 glew/
 glfw/
 glm/
+magic_enum/
 data/
 imgui/
 data/

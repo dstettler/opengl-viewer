@@ -45,14 +45,13 @@ void VAOContainer::deinit()
     isInit = false;
 }
 
-void VAOContainer::init(std::string filename, unsigned int* VAO, unsigned int* VBO)
+void VAOContainer::init(bool fullDeinit)
 {
-    if (isInit)
+    if (isInit && fullDeinit)
         deinit();
+    else if (!fullDeinit)
+        lastVertsArrayGenerated.reset();
 
-    vao = VAO;
-    vbo = vbo;
-    readFromFile(filename);
     // No need to take the return value of this, since it will save the shared ptr to the class anyways
     getVertsArray();
 
@@ -71,19 +70,35 @@ void VAOContainer::init(std::string filename, unsigned int* VAO, unsigned int* V
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
 
     // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
     // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-    glBindVertexArray(0); 
+    glBindVertexArray(0);
 
-
-    // uncomment this call to draw in wireframe polygons.
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    if (wireframe)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     isInit = true;
+}
+
+void VAOContainer::load(std::string filename, unsigned int* VAO, unsigned int* VBO)
+{
+    if (isInit)
+        deinit();
+
+    vao = VAO;
+    vbo = vbo;
+    readFromFile(filename);
+    init();
+}
+
+void VAOContainer::drawGlMesh()
+{
+    glBindVertexArray(*vao);
+    glDrawElements(GL_TRIANGLES, faces.size(), GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 }
 
 std::shared_ptr<float[]> VAOContainer::getVertsArray()
@@ -113,4 +128,18 @@ std::shared_ptr<float[]> VAOContainer::getVertsArray()
 unsigned int VAOContainer::getNumVerts()
 {
     return verts.size() * 3;
+}
+
+void VAOContainer::rotateMesh(float theta)
+{
+
+}
+
+void VAOContainer::scaleMesh(float factor)
+{
+    for (auto iter = verts.begin(); iter != verts.end(); ++iter)
+        *iter *= factor;
+    
+    // Re-generate and assign arrays
+    init(false);
 }

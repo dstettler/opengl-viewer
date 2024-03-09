@@ -4,6 +4,8 @@
 #include <GLFW/glfw3.h>
 #include <glm/vec3.hpp>
 
+#include <magic_enum/include/magic_enum/magic_enum.hpp>
+
 #include <cmath>
 #include <iostream>
 #include <fstream>
@@ -13,7 +15,7 @@
 #include "VAOContainer.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow *window);
+void processInput(GLFWwindow *window, VAOContainer *container);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -40,7 +42,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "viewGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL Viewer", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -115,7 +117,7 @@ int main()
     unsigned int VBO, VAO;
 
     // Read model
-    vaos.init(MODEL_FILENAME, &VAO, &VBO);
+    vaos.load(MODEL_FILENAME, &VAO, &VBO);
     auto vertsPtr =  vaos.getVertsArray();
     float* vertices = vertsPtr.get();
     unsigned int numVertices = vaos.getNumVerts();
@@ -128,7 +130,7 @@ int main()
 
         // input
         // -----
-        processInput(window);
+        processInput(window, &vaos);
 
         // render
         // ------
@@ -138,13 +140,18 @@ int main()
         // draw our first triangle
         glUseProgram(shaderProgram);
 
+        vaos.drawGlMesh();
+
+        auto error = glGetError();
+        std::cout << "Error: " << error << std::endl;
+
         // float currentTime = glfwGetTime();
         // float greenVal = std::sin(currentTime) / 2.0f + 0.5f;
         // int colorLocation = glGetUniformLocation(shaderProgram, "setColor");
         // glUniform4f(colorLocation, 0.0f, greenVal, 0.0f, 0.1f);
 
-        glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-        glDrawArrays(GL_TRIANGLES, 0, numVertices);
+        //glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+        //glDrawArrays(GL_TRIANGLES, 0, numVertices);
         // glBindVertexArray(0); // unbind our VA no need to unbind it every time 
  
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -167,10 +174,14 @@ int main()
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
+void processInput(GLFWwindow *window, VAOContainer *container)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+    if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS)
+        container->scaleMesh(2.0f);
+    if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS)
+        container->scaleMesh(0.5f);        
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

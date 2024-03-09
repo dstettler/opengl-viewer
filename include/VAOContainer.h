@@ -3,14 +3,30 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <glm/vec3.hpp>
+
+#include <GL/glew.h>
+
+struct Face
+{
+    struct Line
+    {
+        float p1, p2;
+    };
+
+    std::vector<Line> lines;
+};
 
 class VAOContainer
 {
     std::vector<glm::vec3> verts;
     std::vector<glm::vec3> normals;
+    std::vector<Face> faces;
+
+    bool wireframe = true;
 
     unsigned int* vao;
     GLuint* vbo;
@@ -21,16 +37,18 @@ class VAOContainer
 
     void readFromFile(std::string filename);
 
+    void init(bool fullDeinit = true);
     void deinit();
     
     public:
-    void init(std::string filename, unsigned int* VAO, unsigned int* VBO);
+    void load(std::string filename, unsigned int* VAO, unsigned int* VBO);
 
     std::shared_ptr<float[]> getVertsArray();
     unsigned int getNumVerts();
-
-    void glSetupMesh();
-    void glDrawMesh();
+    
+    void scaleMesh(float factor);
+    void rotateMesh(float theta);
+    void drawGlMesh();
 };
 
 #endif // VAOCONTAINER_H
