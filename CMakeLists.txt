@@ -37,6 +37,12 @@ include_directories(imgui/backends)
 set(PROJECT_SOURCES
     src/main.cpp
 
+    src/Util.cpp
+    src/VAOContainer.cpp
+
+    include/Util.h
+    include/VAOContainer.h
+
     imgui/imgui.h
     imgui/imconfig.h
     imgui/imgui_demo.cpp
