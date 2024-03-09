@@ -25,6 +25,8 @@ const std::string MODEL_FILENAME = "D:/Documents/GitHub/opengl-viewer/data/cube_
 const std::string VERTEX_SHADER_FILE = "D:/Documents/GitHub/opengl-viewer/shaders/source.vs";
 const std::string FRAGMENT_SHADER_FILE = "D:/Documents/GitHub/opengl-viewer/shaders/source.fs";
 
+bool zoomIn = false, lastZoomIn = false, zoomOut = false, lastZoomOut = false;
+
 int main()
 {
     VAOContainer vaos;
@@ -114,10 +116,10 @@ int main()
     // };
     // unsigned int numVertices = sizeof(vertices)/3;
 
-    unsigned int VBO, VAO;
+    unsigned int VBO, VAO, EBO;
 
     // Read model
-    vaos.load(MODEL_FILENAME, &VAO, &VBO);
+    vaos.load(MODEL_FILENAME, &VAO, &VBO, &EBO);
     auto vertsPtr =  vaos.getVertsArray();
     float* vertices = vertsPtr.get();
     unsigned int numVertices = vaos.getNumVerts();
@@ -142,9 +144,6 @@ int main()
 
         vaos.drawGlMesh();
 
-        auto error = glGetError();
-        std::cout << "Error: " << error << std::endl;
-
         // float currentTime = glfwGetTime();
         // float greenVal = std::sin(currentTime) / 2.0f + 0.5f;
         // int colorLocation = glGetUniformLocation(shaderProgram, "setColor");
@@ -164,6 +163,7 @@ int main()
     // ------------------------------------------------------------------------
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
     glDeleteProgram(shaderProgram);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
@@ -178,10 +178,31 @@ void processInput(GLFWwindow *window, VAOContainer *container)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+    
     if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS)
-        container->scaleMesh(2.0f);
+    {
+        zoomIn = true;
+        if (zoomIn && !lastZoomIn)
+            container->scaleMesh(1.5);
+    }
+    else if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_RELEASE)
+    {
+        zoomIn = false;
+    }
+
     if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS)
-        container->scaleMesh(0.5f);        
+    {
+        zoomOut = true;
+        if (zoomOut && !lastZoomOut)
+            container->scaleMesh(0.75);
+    }
+    else if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_RELEASE)
+    {
+        zoomOut = false;
+    }
+
+    lastZoomIn = zoomIn;
+    lastZoomOut = zoomOut; 
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

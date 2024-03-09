@@ -31,6 +31,25 @@ void VAOContainer::readFromFile(std::string filename)
         {
             normals.push_back(glm::vec3(std::stof(split[1]), std::stof(split[2]), std::stof(split[3])));
         }
+        else if (lineType == "f")
+        {
+            Face f;
+            for (auto iter = split.begin(); iter != split.end(); ++iter)
+            {
+                if (iter == split.begin())
+                    continue;
+                
+                std::string v1, v2;
+                size_t delimIndex = iter->find("//");
+                v1 = iter->substr(0, delimIndex);
+                v2 = iter->substr(delimIndex + 2, iter->size());
+                Face::Index index;
+                index.vertex = stoi(v1) - 1;
+                index.normal = stoi(v2) - 1;
+                f.indices.push_back(index);
+            }
+            faces.push_back(f);
+        }
     }
 
     in.close();
@@ -39,6 +58,7 @@ void VAOContainer::readFromFile(std::string filename)
 void VAOContainer::deinit()
 {
     lastVertsArrayGenerated.reset();
+    lastIndicesArrayGenerated.reset();
     verts.clear();
     normals.clear();
 
@@ -50,18 +70,26 @@ void VAOContainer::init(bool fullDeinit)
     if (isInit && fullDeinit)
         deinit();
     else if (!fullDeinit)
+    {
         lastVertsArrayGenerated.reset();
+        lastIndicesArrayGenerated.reset();
+    }
 
-    // No need to take the return value of this, since it will save the shared ptr to the class anyways
+    // No need to take the return value of these, since they will save the shared ptrs to the class anyways
     getVertsArray();
+    getIndicesArray();
 
     glGenVertexArrays(1, vao);
     glGenBuffers(1, vbo);
+    glGenBuffers(1, ebo);
     // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
     glBindVertexArray(*vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, *vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(lastVertsArrayGenerated.get()), lastVertsArrayGenerated.get(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, verts.size() * 3 * sizeof(float), lastVertsArrayGenerated.get(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, faces.size() * 3 * sizeof(unsigned int), lastIndicesArrayGenerated.get(), GL_STATIC_DRAW);
 
     // position
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
@@ -83,13 +111,14 @@ void VAOContainer::init(bool fullDeinit)
     isInit = true;
 }
 
-void VAOContainer::load(std::string filename, unsigned int* VAO, unsigned int* VBO)
+void VAOContainer::load(std::string filename, unsigned int* VAO, unsigned int* VBO, unsigned int* EBO)
 {
     if (isInit)
         deinit();
 
     vao = VAO;
-    vbo = vbo;
+    vbo = VBO;
+    ebo = EBO;
     readFromFile(filename);
     init();
 }
@@ -97,7 +126,7 @@ void VAOContainer::load(std::string filename, unsigned int* VAO, unsigned int* V
 void VAOContainer::drawGlMesh()
 {
     glBindVertexArray(*vao);
-    glDrawElements(GL_TRIANGLES, faces.size(), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, faces.size() * 3, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
 
@@ -108,6 +137,10 @@ std::shared_ptr<float[]> VAOContainer::getVertsArray()
 
     std::shared_ptr<float[]> ptr(new float[getNumVerts() * 2]);
     int i = 0;
+    float r, g, b;
+    r = 1.0f;
+    g = 0.0f;
+    b = 0.0f;
     for (glm::vec3 vec : verts)
     {
         // Vert pos
@@ -116,13 +149,37 @@ std::shared_ptr<float[]> VAOContainer::getVertsArray()
         ptr[i++] = vec.z;
 
         // Vert color
-        ptr[i++] = 1.0f;
-        ptr[i++] = 0.0f;
-        ptr[i++] = 0.0f;
+        ptr[i++] = r;
+        ptr[i++] = g;
+        ptr[i++] = b;
+
+        float tempR = r;
+        r = b;
+        b = g;
+        g = tempR;        
     }
 
     lastVertsArrayGenerated = ptr;
     return ptr;
+}
+
+std::shared_ptr<unsigned int[]> VAOContainer::getIndicesArray()
+{
+    if (lastIndicesArrayGenerated)
+        return lastIndicesArrayGenerated;
+
+    std::shared_ptr<unsigned int[]> ptr(new unsigned int[faces.size() * 3]);
+    int i = 0;
+    for (Face f : faces)
+    {
+        // Vert index
+        ptr[i++] = f.indices[0].vertex;
+        ptr[i++] = f.indices[1].vertex;
+        ptr[i++] = f.indices[2].vertex;
+    }
+
+    lastIndicesArrayGenerated = ptr;
+    return ptr;    
 }
 
 unsigned int VAOContainer::getNumVerts()

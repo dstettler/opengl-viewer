@@ -12,12 +12,12 @@
 
 struct Face
 {
-    struct Line
+    struct Index
     {
-        float p1, p2;
+        unsigned int vertex, normal;
     };
 
-    std::vector<Line> lines;
+    std::vector<Index> indices;
 };
 
 class VAOContainer
@@ -26,12 +26,13 @@ class VAOContainer
     std::vector<glm::vec3> normals;
     std::vector<Face> faces;
 
-    bool wireframe = true;
+    bool wireframe = false;
 
-    unsigned int* vao;
-    GLuint* vbo;
+    unsigned int *vao;
+    GLuint *vbo, *ebo;
 
     std::shared_ptr<float[]> lastVertsArrayGenerated;
+    std::shared_ptr<unsigned int[]> lastIndicesArrayGenerated;
 
     bool isInit = false;
 
@@ -41,9 +42,10 @@ class VAOContainer
     void deinit();
     
     public:
-    void load(std::string filename, unsigned int* VAO, unsigned int* VBO);
+    void load(std::string filename, unsigned int* VAO, unsigned int* VBO, unsigned int* EBO);
 
     std::shared_ptr<float[]> getVertsArray();
+    std::shared_ptr<unsigned int[]> getIndicesArray();
     unsigned int getNumVerts();
     
     void scaleMesh(float factor);
