@@ -11,9 +11,11 @@
 
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
-#include <glm/vec4.hpp>
+#include <glm/ext/matrix_float4x4.hpp>
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 void VAOContainer::readFromFile(std::string filename)
 {
@@ -95,6 +97,7 @@ void VAOContainer::deinit()
     lastIndicesArrayGenerated.reset();
     verts.clear();
     normals.clear();
+    faces.clear();
 
     isInit = false;
 }
@@ -111,38 +114,80 @@ void VAOContainer::init(bool fullDeinit)
 
     // No need to take the return value of these, since they will save the shared ptrs to the class anyways
     getVertsArray();
-    getIndicesArray();
 
-    glGenVertexArrays(1, vao);
-    glGenBuffers(1, vbo);
-    glGenBuffers(1, ebo);
-    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(*vao);
+    if (triMode == TriMode::IndexedTris)
+    {
+        // No need to generate this pointer for separate tris
+        getIndicesArray();
 
-    glBindBuffer(GL_ARRAY_BUFFER, *vbo);
-    glBufferData(GL_ARRAY_BUFFER, verts.size() * 3 * 2 * sizeof(float), lastVertsArrayGenerated.get(), GL_STATIC_DRAW);
+        glGenVertexArrays(1, vao);
+        glGenBuffers(1, vbo);
+        glGenBuffers(1, ebo);
+        // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
+        glBindVertexArray(*vao);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, faces.size() * 3 * sizeof(unsigned int), lastIndicesArrayGenerated.get(), GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, *vbo);
+        glBufferData(GL_ARRAY_BUFFER, verts.size() * 3 * 2 * sizeof(float), lastVertsArrayGenerated.get(), GL_STATIC_DRAW);
 
-    // position
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    // color
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, faces.size() * 3 * sizeof(unsigned int), lastIndicesArrayGenerated.get(), GL_STATIC_DRAW);
 
-    // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
-    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+        // position
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        // color
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
 
-    // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
-    // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-    glBindVertexArray(0);
+        // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
+        glBindBuffer(GL_ARRAY_BUFFER, 0); 
+
+        // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
+        // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
+        glBindVertexArray(0);
+    }
+    // Basically the same but without EBO/faces stuff
+    else if (triMode == TriMode::SeparateTris)
+    {
+        glGenVertexArrays(1, vao);
+        glGenBuffers(1, vbo);
+        // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
+        glBindVertexArray(*vao);
+
+        glBindBuffer(GL_ARRAY_BUFFER, *vbo);
+        glBufferData(GL_ARRAY_BUFFER, getNumVerts() * 2 * sizeof(float), lastVertsArrayGenerated.get(), GL_STATIC_DRAW);
+
+        // position
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        // color
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+
+        // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
+        glBindBuffer(GL_ARRAY_BUFFER, 0); 
+
+        // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
+        // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
+        glBindVertexArray(0);
+    }
+
+    // Shader identity rotation matrix
+    glm::mat4 transMatrix = glm::mat4(1.0f);
+    unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "transform");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transMatrix));
 
     isInit = true;
 }
 
-void VAOContainer::load(std::string filename, unsigned int* VAO, unsigned int* VBO, unsigned int* EBO)
+void VAOContainer::load(std::string filename, 
+    unsigned int* VAO, 
+    unsigned int* VBO, 
+    unsigned int* EBO, 
+    unsigned int* vertexShader, 
+    unsigned int* fragmentShader,
+    unsigned int* shaderProgram,
+    TriMode triMode)
 {
     if (isInit)
         deinit();
@@ -150,6 +195,10 @@ void VAOContainer::load(std::string filename, unsigned int* VAO, unsigned int* V
     vao = VAO;
     vbo = VBO;
     ebo = EBO;
+    this->vertexShader = vertexShader;
+    this->fragmentShader = fragmentShader;
+    this->shaderProgram = shaderProgram;
+    this->triMode = triMode;
     readFromFile(filename);
     init();
 }
@@ -162,7 +211,10 @@ void VAOContainer::drawGlMesh()
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     glBindVertexArray(*vao);
-    glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(faces.size()) * 2 * 3, GL_UNSIGNED_INT, 0);
+    if (triMode == TriMode::IndexedTris)
+        glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(faces.size()) * 2 * 3, GL_UNSIGNED_INT, 0);
+    else if (triMode == TriMode::SeparateTris)
+        glDrawArrays(GL_TRIANGLES, 0, getNumVerts() * 2);
     glBindVertexArray(0);
 }
 
@@ -177,22 +229,50 @@ std::shared_ptr<float[]> VAOContainer::getVertsArray()
     r = 1.0f;
     g = 0.0f;
     b = 0.0f;
-    for (glm::vec3 vec : verts)
+
+    if (triMode == TriMode::IndexedTris)
     {
-        // Vert pos
-        ptr[i++] = vec.x;
-        ptr[i++] = vec.y;
-        ptr[i++] = vec.z;
+        for (glm::vec3 vec : verts)
+        {
+            // Vert pos
+            ptr[i++] = vec.x;
+            ptr[i++] = vec.y;
+            ptr[i++] = vec.z;
 
-        // Vert color
-        ptr[i++] = r;
-        ptr[i++] = g;
-        ptr[i++] = b;
+            // Vert color
+            ptr[i++] = r;
+            ptr[i++] = g;
+            ptr[i++] = b;
 
-        float tempR = r;
-        r = b;
-        b = g;
-        g = tempR;        
+            float tempR = r;
+            r = b;
+            b = g;
+            g = tempR;        
+        }
+    }
+    else if (triMode == TriMode::SeparateTris)
+    {
+        for (Face f : faces)
+        {
+            for (auto index : f.indices)
+            {
+                auto vert = verts[index.vertex];
+                // Vert pos
+                ptr[i++] = vert.x;
+                ptr[i++] = vert.y;
+                ptr[i++] = vert.z;
+
+                // Vert color
+                ptr[i++] = r;
+                ptr[i++] = g;
+                ptr[i++] = b;
+
+                float tempR = r;
+                r = b;
+                b = g;
+                g = tempR; 
+            }
+        }
     }
 
     lastVertsArrayGenerated = ptr;
@@ -220,7 +300,14 @@ std::shared_ptr<unsigned int[]> VAOContainer::getIndicesArray()
 
 unsigned int VAOContainer::getNumVerts()
 {
-    return verts.size() * 3;
+    if (triMode == TriMode::IndexedTris)
+        return verts.size() * 3;
+    else if (triMode == TriMode::SeparateTris)
+    {
+        return faces.size() * 3 * 3;
+    }
+    
+    return 0;
 }
 
 void VAOContainer::rotateMesh(float theta, VAOContainer::MeshRotation rotationType)
@@ -236,6 +323,11 @@ void VAOContainer::rotateMesh(float theta, VAOContainer::MeshRotation rotationTy
             *iter = rotateAboutZ(theta, *iter);
     }
     
+    // Shader identity rotation matrix
+    glm::mat4 rotationMatrix = glm::mat4(1.0f);
+    unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "transform");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(rotationMatrix));
+
     // Re-generate and assign arrays
     init(false);    
 }
@@ -243,19 +335,41 @@ void VAOContainer::rotateMesh(float theta, VAOContainer::MeshRotation rotationTy
 void VAOContainer::rotateMeshGpu(float theta, VAOContainer::MeshRotation rotationType)
 {
     // Implement based on axis
-    for (auto iter = verts.begin(); iter != verts.end(); ++iter)
-    {
-        glm::vec4 rotationMatrix;
-        if (rotationType == MeshRotation::XAxis)
-            *iter = rotateAboutX(theta, *iter);
-        else if (rotationType == MeshRotation::YAxis)
-            *iter = rotateAboutY(theta, *iter);
-        else if (rotationType == MeshRotation::ZAxis)
-            *iter = rotateAboutZ(theta, *iter);
-    }
+    glm::mat4 rotationMatrix = glm::mat4(1.0f);
+
+    if (rotationType == MeshRotation::XAxis)
+        existingGpuXTheta += theta;
+    else if (rotationType == MeshRotation::YAxis)
+        existingGpuYTheta += theta;
+    else if (rotationType == MeshRotation::ZAxis)
+        existingGpuZTheta += theta;
+
+    rotationMatrix = glm::rotate(rotationMatrix, glm::radians(existingGpuXTheta), glm::vec3(1.0, 0.0, 0.0));
+    rotationMatrix = glm::rotate(rotationMatrix, glm::radians(existingGpuYTheta), glm::vec3(0.0, 1.0, 0.0));
+    rotationMatrix = glm::rotate(rotationMatrix, glm::radians(existingGpuZTheta), glm::vec3(1.0, 0.0, 1.0));
     
-    // Re-generate and assign arrays
-    init(false);    
+    // Preserve scaling
+    rotationMatrix = glm::scale(rotationMatrix, glm::vec3(existingGpuScaleFactor, existingGpuScaleFactor, existingGpuScaleFactor));
+    
+    unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "transform");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(rotationMatrix));
+}
+
+void VAOContainer::scaleMeshGpu(float factor)
+{
+    // Implement based on axis
+    glm::mat4 transformMatrix = glm::mat4(1.0f);
+    existingGpuScaleFactor *= factor;
+
+    transformMatrix = glm::scale(transformMatrix, glm::vec3(existingGpuScaleFactor, existingGpuScaleFactor, existingGpuScaleFactor));
+
+    // Preserve rotations
+    transformMatrix = glm::rotate(transformMatrix, glm::radians(existingGpuXTheta), glm::vec3(1.0, 0.0, 0.0));
+    transformMatrix = glm::rotate(transformMatrix, glm::radians(existingGpuYTheta), glm::vec3(0.0, 1.0, 0.0));
+    transformMatrix = glm::rotate(transformMatrix, glm::radians(existingGpuZTheta), glm::vec3(1.0, 0.0, 1.0));
+    
+    unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "transform");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transformMatrix));
 }
 
 void VAOContainer::scaleMesh(float factor)
@@ -263,6 +377,11 @@ void VAOContainer::scaleMesh(float factor)
     for (auto iter = verts.begin(); iter != verts.end(); ++iter)
         *iter *= factor;
     
+    // Shader identity rotation matrix
+    glm::mat4 rotationMatrix = glm::mat4(1.0f);
+    unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "transform");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(rotationMatrix));
+
     // Re-generate and assign arrays
     init(false);
 }

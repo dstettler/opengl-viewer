@@ -30,14 +30,26 @@ class VAOContainer
         ZAxis,
     };
 
+    enum class TriMode
+    {
+        SeparateTris,
+        IndexedTris
+    };
+
     private:
     std::vector<glm::vec3> verts;
     std::vector<glm::vec3> normals;
     std::vector<Face> faces;
 
+    TriMode triMode;
+
+    // For GPU calculations
+    float existingGpuScaleFactor = 1.0f;
+    float existingGpuXTheta = 0.0f, existingGpuYTheta = 0.0f, existingGpuZTheta = 0.0f;
+
     bool wireframe = false;
 
-    unsigned int *vao;
+    unsigned int *vao, *vertexShader, *fragmentShader, *shaderProgram;
     GLuint *vbo, *ebo;
 
     std::shared_ptr<float[]> lastVertsArrayGenerated;
@@ -54,7 +66,14 @@ class VAOContainer
     std::vector<Face> triangulateFace(Face givenFace);
 
     public:
-    void load(std::string filename, unsigned int* VAO, unsigned int* VBO, unsigned int* EBO);
+    void load(std::string filename, 
+        unsigned int* VAO, 
+        unsigned int* VBO, 
+        unsigned int* EBO, 
+        unsigned int* vertexShader, 
+        unsigned int* fragmentShader,
+        unsigned int* shaderProgram,
+        TriMode triMode = TriMode::SeparateTris);
 
     std::shared_ptr<float[]> getVertsArray();
     std::shared_ptr<unsigned int[]> getIndicesArray();
@@ -64,8 +83,9 @@ class VAOContainer
     void setWireframe(bool wireframeStatus) { wireframe = wireframeStatus; };
     
     void scaleMesh(float factor);
+    void scaleMeshGpu(float factor);
     void rotateMesh(float theta, MeshRotation rotationType);
-    void rotateMeshGpu(float theta, VAOContainer::MeshRotation rotationType);
+    void rotateMeshGpu(float theta, MeshRotation rotationType);
     void drawGlMesh();
 };
 

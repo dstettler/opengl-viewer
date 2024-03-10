@@ -23,7 +23,7 @@ void processInput(GLFWwindow *window, VAOContainer *container);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-const std::string MODEL_FILENAME = "D:/Documents/GitHub/opengl-viewer/data/pawn.obj";
+const std::string MODEL_FILENAME = "D:/Documents/GitHub/opengl-viewer/data/head.obj";
 const std::string VERTEX_SHADER_FILE = "D:/Documents/GitHub/opengl-viewer/shaders/source.vs";
 const std::string FRAGMENT_SHADER_FILE = "D:/Documents/GitHub/opengl-viewer/shaders/source.fs";
 
@@ -158,12 +158,12 @@ int main()
     unsigned int VBO, VAO, EBO;
 
     // Read model
-    vaos.load(MODEL_FILENAME, &VAO, &VBO, &EBO);
+    vaos.load(MODEL_FILENAME, &VAO, &VBO, &EBO, &vertexShader, &fragmentShader, &shaderProgram);
 
     // Disable vsync and uncap frames
     glfwSwapInterval(0);
 
-    glDisable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);    
 
     // render loop
     // -----------
@@ -180,9 +180,33 @@ int main()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+
         if (ImGui::Begin("Scene"))
         {
             ImGui::BeginChild("VAO");
+
+            if (ImGui::CollapsingHeader("Select Model"))
+            {
+                const char* models[] = { "head", "pawn", "cube_tri", "eagle_tri" };
+                static int selectedModel = 1;
+                ImGui::ListBox("Model Select", &selectedModel, models, IM_ARRAYSIZE(models), 4);
+                
+                static int mode = 0;
+                ImGui::RadioButton("Indexed Tris", &mode, 0); ImGui::SameLine();
+                ImGui::RadioButton("Separate Tris", &mode, 1);
+
+                if (ImGui::Button("Load Selected Model"))
+                {
+                    std::string filepath = "./data/";
+                    filepath += models[selectedModel];
+                    filepath += ".obj";
+                    vaos.load(filepath, &VAO, &VBO, &EBO, &vertexShader, &fragmentShader, &shaderProgram,
+                        (mode == 0) ? VAOContainer::TriMode::IndexedTris : VAOContainer::TriMode::SeparateTris
+                    );
+                }
+            }
+
+            ImGui::Spacing();
 
             if (ImGui::Button("Swap CPU/GPU"))
             {
@@ -200,7 +224,7 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // draw our first triangle
+        // Use program for shaders
         glUseProgram(shaderProgram);
 
         vaos.drawGlMesh();
@@ -250,8 +274,10 @@ void processInput(GLFWwindow *window, VAOContainer *container)
     if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS)
     {
         zoomIn = true;
-        if (zoomIn && !lastZoomIn)
+        if (zoomIn && !lastZoomIn && rotateCpu)
             container->scaleMesh(1.5);
+        else if (zoomIn && !lastZoomIn && !rotateCpu)
+            container->scaleMeshGpu(1.5);
     }
     else if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_RELEASE)
     {
@@ -261,8 +287,10 @@ void processInput(GLFWwindow *window, VAOContainer *container)
     if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS)
     {
         zoomOut = true;
-        if (zoomOut && !lastZoomOut)
+        if (zoomOut && !lastZoomOut && rotateCpu)
             container->scaleMesh(0.75);
+        else if (zoomOut && !lastZoomOut && !rotateCpu)
+            container->scaleMeshGpu(0.75);
     }
     else if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_RELEASE)
     {
@@ -281,13 +309,52 @@ void processInput(GLFWwindow *window, VAOContainer *container)
     }
 
     if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-        container->rotateMesh(-0.1, VAOContainer::MeshRotation::YAxis);
+    {
+        if (rotateCpu)
+        {
+            container->rotateMesh(-0.1, VAOContainer::MeshRotation::YAxis);
+        }
+        else
+        {
+            container->rotateMeshGpu(-0.1, VAOContainer::MeshRotation::YAxis);
+        }
+    }
+        
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-        container->rotateMesh(0.1, VAOContainer::MeshRotation::YAxis);
+    {
+        if (rotateCpu)
+        {
+            container->rotateMesh(0.1, VAOContainer::MeshRotation::YAxis);
+        }
+        else
+        {
+            container->rotateMeshGpu(0.1, VAOContainer::MeshRotation::YAxis);
+        }
+    }    
+    
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-        container->rotateMesh(-0.1, VAOContainer::MeshRotation::XAxis);
+    {
+        if (rotateCpu)
+        {
+            container->rotateMesh(-0.1, VAOContainer::MeshRotation::XAxis);
+        }
+        else
+        {
+            container->rotateMeshGpu(-0.1, VAOContainer::MeshRotation::XAxis);
+        }
+    }
+
     if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-        container->rotateMesh(0.1, VAOContainer::MeshRotation::XAxis);                
+    {
+        if (rotateCpu)
+        {
+            container->rotateMesh(0.1, VAOContainer::MeshRotation::XAxis);
+        }
+        else
+        {
+            container->rotateMeshGpu(0.1, VAOContainer::MeshRotation::XAxis);
+        }
+    }
 
     lastZoomIn = zoomIn;
     lastZoomOut = zoomOut;
