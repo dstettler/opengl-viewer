@@ -73,7 +73,7 @@ class VAOContainer
         unsigned int* vertexShader, 
         unsigned int* fragmentShader,
         unsigned int* shaderProgram,
-        TriMode triMode = TriMode::SeparateTris);
+        TriMode triMode = TriMode::IndexedTris);
 
     std::shared_ptr<float[]> getVertsArray();
     std::shared_ptr<unsigned int[]> getIndicesArray();

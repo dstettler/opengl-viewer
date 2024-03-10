@@ -23,9 +23,9 @@ void processInput(GLFWwindow *window, VAOContainer *container);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-const std::string MODEL_FILENAME = "D:/Documents/GitHub/opengl-viewer/data/head.obj";
-const std::string VERTEX_SHADER_FILE = "D:/Documents/GitHub/opengl-viewer/shaders/source.vs";
-const std::string FRAGMENT_SHADER_FILE = "D:/Documents/GitHub/opengl-viewer/shaders/source.fs";
+const std::string MODEL_FILENAME = "./data/head.obj";
+const std::string VERTEX_SHADER_FILE = "./shaders/source.vs";
+const std::string FRAGMENT_SHADER_FILE = "./shaders/source.fs";
 
 // Latches for movement keys
 bool zoomIn = false, 
