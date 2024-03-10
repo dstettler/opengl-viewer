@@ -10,6 +10,10 @@
 #include <GL/glew.h>
 
 #include <glm/vec3.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
+#include <glm/common.hpp>
+#include <glm/geometric.hpp>
 
 void VAOContainer::readFromFile(std::string filename)
 {
@@ -39,15 +43,45 @@ void VAOContainer::readFromFile(std::string filename)
                 if (iter == split.begin())
                     continue;
                 
-                std::string v1, v2;
-                size_t delimIndex = iter->find("//");
-                v1 = iter->substr(0, delimIndex);
-                v2 = iter->substr(delimIndex + 2, iter->size());
-                Face::Index index;
-                index.vertex = stoi(v1) - 1;
-                index.normal = stoi(v2) - 1;
-                f.indices.push_back(index);
+                // Mesh stores faces with just normals
+                if (iter->find("//") != iter->npos)
+                {
+                    std::string v1, v2;
+                    size_t delimIndex = iter->find("//");
+                    v1 = iter->substr(0, delimIndex);
+                    v2 = iter->substr(delimIndex + 2, iter->size());
+                    Face::Index index;
+                    index.vertex = stoi(v1) - 1;
+                    index.normal = stoi(v2) - 1;
+                    f.indices.push_back(index);
+                }
+                // Mesh stores faces with normals and textures or just textures
+                else if (iter->find("/") != iter->npos)
+                {
+                    // For simplicity in this assignment I will *only* read the vertices in this
+                    // situation
+                    // TODO: Make this behavior more complex
+                    std::string v1, v2;
+                    size_t delimIndex = iter->find("/");
+                    v1 = iter->substr(0, delimIndex);
+                    v2 = v1;
+                    Face::Index index;
+                    index.vertex = stoi(v1) - 1;
+                    index.normal = stoi(v2) - 1;
+                    f.indices.push_back(index);
+                }
+                else
+                {
+                    Face::Index index;
+                    index.vertex = stoi(*iter) - 1;
+                    index.normal = 0;
+                    f.indices.push_back(index);
+                }
             }
+
+            //auto triangulatedFaces = triangulateFace(f);
+            //for (Face triangulated : triangulatedFaces)
+            //    faces.push_back(triangulated);
             faces.push_back(f);
         }
     }
@@ -86,7 +120,7 @@ void VAOContainer::init(bool fullDeinit)
     glBindVertexArray(*vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, *vbo);
-    glBufferData(GL_ARRAY_BUFFER, verts.size() * 3 * sizeof(float), lastVertsArrayGenerated.get(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, verts.size() * 3 * 2 * sizeof(float), lastVertsArrayGenerated.get(), GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, faces.size() * 3 * sizeof(unsigned int), lastIndicesArrayGenerated.get(), GL_STATIC_DRAW);
@@ -128,7 +162,7 @@ void VAOContainer::drawGlMesh()
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     glBindVertexArray(*vao);
-    glDrawElements(GL_TRIANGLES, faces.size() * 3, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(faces.size()) * 2 * 3, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
 
@@ -189,11 +223,36 @@ unsigned int VAOContainer::getNumVerts()
     return verts.size() * 3;
 }
 
-void VAOContainer::rotateMesh(float theta)
+void VAOContainer::rotateMesh(float theta, VAOContainer::MeshRotation rotationType)
 {
     // Implement based on axis
-    // for (auto iter = verts.begin(); iter != verts.end(); ++iter)
-    //     *iter = 
+    for (auto iter = verts.begin(); iter != verts.end(); ++iter)
+    {
+        if (rotationType == MeshRotation::XAxis)
+            *iter = rotateAboutX(theta, *iter);
+        else if (rotationType == MeshRotation::YAxis)
+            *iter = rotateAboutY(theta, *iter);
+        else if (rotationType == MeshRotation::ZAxis)
+            *iter = rotateAboutZ(theta, *iter);
+    }
+    
+    // Re-generate and assign arrays
+    init(false);    
+}
+
+void VAOContainer::rotateMeshGpu(float theta, VAOContainer::MeshRotation rotationType)
+{
+    // Implement based on axis
+    for (auto iter = verts.begin(); iter != verts.end(); ++iter)
+    {
+        glm::vec4 rotationMatrix;
+        if (rotationType == MeshRotation::XAxis)
+            *iter = rotateAboutX(theta, *iter);
+        else if (rotationType == MeshRotation::YAxis)
+            *iter = rotateAboutY(theta, *iter);
+        else if (rotationType == MeshRotation::ZAxis)
+            *iter = rotateAboutZ(theta, *iter);
+    }
     
     // Re-generate and assign arrays
     init(false);    
@@ -206,4 +265,124 @@ void VAOContainer::scaleMesh(float factor)
     
     // Re-generate and assign arrays
     init(false);
+}
+
+float cross2D(glm::vec2 a, glm::vec2 b)
+{
+    return a.x * b.y - b.x * a.y;
+}
+
+std::vector<Face> VAOContainer::triangulateFace(Face givenFace)
+{
+    std::vector<Face> faces;
+    if (!isAlreadyTri(&givenFace))
+    {
+        std::vector<Face::Index> indices;
+        for (auto i : givenFace.indices)
+            indices.push_back(i);
+
+        int numTris = givenFace.indices.size() - 2;
+        while (indices.size() > 3)
+        {
+            for (auto iter = indices.begin(); iter != indices.end(); ++iter)
+            {
+                int a = iter->vertex;
+                auto aNorm = iter->normal;
+                int b;
+                int bNorm;
+                if (iter == indices.begin())
+                {
+                    b = indices.rbegin()->vertex;
+                    bNorm = indices.rbegin()->normal;
+                }
+                else
+                {
+                    --iter;
+                    b = iter->vertex;
+                    bNorm = iter->normal;
+                    ++iter;
+                }
+
+                ++iter;
+                int c = iter->vertex;
+                int cNorm = iter->normal;
+                --iter;
+
+                // Make all verts 2D since we're subdividing a face
+                auto vertA = glm::vec2(verts[a]);
+                auto vertB = glm::vec2(verts[b]);
+                auto vertC = glm::vec2(verts[c]);
+
+                auto aToB = vertB - vertA;
+                auto bToC = vertC - vertB;
+                auto aToC = vertB - vertA;
+
+                if (cross2D(aToB, bToC) < 0.0f)
+                    continue;
+
+                bool ear = true;
+                for (int i = 0; i < verts.size(); i++)
+                {
+                    if (i == a || i == b || i == c)
+                        continue;
+
+                    auto currentVert = glm::vec2(verts[i]);
+
+                    float c1, c2, c3;
+                    c1 = cross2D(vertB - vertA, currentVert - vertA);
+                    c2 = cross2D(vertC - vertB, currentVert - vertB);
+                    c3 = cross2D(vertA - vertC, currentVert - vertC);
+
+                    if (c1 > 0 || c2 > 0 || c3 > 0)
+                        continue;
+                    else
+                    {
+                        ear = false;
+                        break;
+                    }
+                }
+
+                if (ear)
+                {
+                    Face newFace;
+                    Face::Index i1;
+                    i1.vertex = a;
+                    i1.normal = aNorm;
+                    Face::Index i2;
+                    i2.vertex = a;
+                    i2.normal = aNorm;
+                    Face::Index i3;
+                    i3.vertex = a;
+                    i3.normal = aNorm;
+
+                    newFace.indices.push_back(i1);
+                    newFace.indices.push_back(i2);
+                    newFace.indices.push_back(i3);
+
+                    faces.push_back(newFace);
+
+                    indices.erase(iter);
+                }
+            }
+        }
+        
+        Face newFace;
+
+        newFace.indices.push_back(indices[0]);
+        newFace.indices.push_back(indices[1]);
+        newFace.indices.push_back(indices[2]);
+
+        faces.push_back(newFace);
+    }
+    else
+    {
+        faces.push_back(givenFace);
+    }
+
+    return faces;
+}
+
+bool VAOContainer::isAlreadyTri(Face *f)
+{
+    return f->indices.size() == 3;
 }

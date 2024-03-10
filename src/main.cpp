@@ -4,12 +4,14 @@
 #include <GLFW/glfw3.h>
 #include <glm/vec3.hpp>
 
-#include <magic_enum/include/magic_enum/magic_enum.hpp>
-
 #include <cmath>
 #include <iostream>
 #include <fstream>
 #include <string>
+
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
 #include "Util.h"
 #include "VAOContainer.h"
@@ -21,7 +23,7 @@ void processInput(GLFWwindow *window, VAOContainer *container);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-const std::string MODEL_FILENAME = "D:/Documents/GitHub/opengl-viewer/data/cube_tri.obj";
+const std::string MODEL_FILENAME = "D:/Documents/GitHub/opengl-viewer/data/pawn.obj";
 const std::string VERTEX_SHADER_FILE = "D:/Documents/GitHub/opengl-viewer/shaders/source.vs";
 const std::string FRAGMENT_SHADER_FILE = "D:/Documents/GitHub/opengl-viewer/shaders/source.fs";
 
@@ -32,6 +34,25 @@ bool zoomIn = false,
     lastZoomOut = false, 
     wireframe, 
     lastWireframe = false;
+
+double currentTime = 0, prevTime = 0, fps = 0;
+
+unsigned int tick = 0;
+
+bool rotateCpu = true;
+
+void fpsTick()
+{
+    currentTime = glfwGetTime();
+    double d = currentTime - prevTime;
+    tick++;
+    if (d >= 1)
+    {
+        fps = (double)tick / d;
+        prevTime = currentTime;
+        tick = 0;
+    }    
+}
 
 int main()
 {
@@ -62,6 +83,18 @@ int main()
 
     // // glew: load all OpenGL function pointers
     glewInit();
+
+    // imgui init
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);          // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
+    ImGui_ImplOpenGL3_Init();
 
     // build and compile our shader program
     // ------------------------------------
@@ -126,9 +159,11 @@ int main()
 
     // Read model
     vaos.load(MODEL_FILENAME, &VAO, &VBO, &EBO);
-    auto vertsPtr =  vaos.getVertsArray();
-    float* vertices = vertsPtr.get();
-    unsigned int numVertices = vaos.getNumVerts();
+
+    // Disable vsync and uncap frames
+    glfwSwapInterval(0);
+
+    glDisable(GL_CULL_FACE);
 
     // render loop
     // -----------
@@ -136,9 +171,29 @@ int main()
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        fpsTick();
+
         // input
         // -----
         processInput(window, &vaos);
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        if (ImGui::Begin("Scene"))
+        {
+            ImGui::BeginChild("VAO");
+
+            if (ImGui::Button("Swap CPU/GPU"))
+            {
+                rotateCpu = !rotateCpu;
+            }
+            ImGui::Text((rotateCpu) ? "Using CPU" : "Using GPU");
+            ImGui::Text("FPS: %f", fps);
+
+            ImGui::EndChild();
+        }
+        ImGui::End();
 
         // render
         // ------
@@ -149,6 +204,9 @@ int main()
         glUseProgram(shaderProgram);
 
         vaos.drawGlMesh();
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // float currentTime = glfwGetTime();
         // float greenVal = std::sin(currentTime) / 2.0f + 0.5f;
@@ -171,6 +229,10 @@ int main()
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
     glDeleteProgram(shaderProgram);
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
@@ -217,6 +279,15 @@ void processInput(GLFWwindow *window, VAOContainer *container)
     {
         wireframe = false;
     }
+
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+        container->rotateMesh(-0.1, VAOContainer::MeshRotation::YAxis);
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+        container->rotateMesh(0.1, VAOContainer::MeshRotation::YAxis);
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+        container->rotateMesh(-0.1, VAOContainer::MeshRotation::XAxis);
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        container->rotateMesh(0.1, VAOContainer::MeshRotation::XAxis);                
 
     lastZoomIn = zoomIn;
     lastZoomOut = zoomOut;

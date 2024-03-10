@@ -22,6 +22,15 @@ struct Face
 
 class VAOContainer
 {
+    public:
+    enum class MeshRotation
+    {
+        XAxis,
+        YAxis,
+        ZAxis,
+    };
+
+    private:
     std::vector<glm::vec3> verts;
     std::vector<glm::vec3> normals;
     std::vector<Face> faces;
@@ -41,6 +50,9 @@ class VAOContainer
     void init(bool fullDeinit = true);
     void deinit();
     
+    bool isAlreadyTri(Face *f);
+    std::vector<Face> triangulateFace(Face givenFace);
+
     public:
     void load(std::string filename, unsigned int* VAO, unsigned int* VBO, unsigned int* EBO);
 
@@ -52,7 +64,8 @@ class VAOContainer
     void setWireframe(bool wireframeStatus) { wireframe = wireframeStatus; };
     
     void scaleMesh(float factor);
-    void rotateMesh(float theta);
+    void rotateMesh(float theta, MeshRotation rotationType);
+    void rotateMeshGpu(float theta, VAOContainer::MeshRotation rotationType);
     void drawGlMesh();
 };
 
