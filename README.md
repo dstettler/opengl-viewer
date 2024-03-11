@@ -43,6 +43,11 @@ pacman -S base-devel cmake ninja glew libice libsm libxrandr libxinerama xorg-se
 I've also included a bash script `check-linux-deps.sh` that can automatically check for all of these.
 I've tested it to work on both Arch and Ubuntu 22.
 
+### MacOS Setup
+Using brew as a package manager, you can run the following command to install all the needed dependencies:
+`brew install cmake ninja glew`
+
+
 ## Build Steps (with Ninja)
 If you have `ninja` already on your PATH, you can run `build.sh` to build.
 The output will be: `build/debug/OpenGLViewerd`
@@ -52,4 +57,4 @@ Run `cmake -B build` to generate the CMake build files, and then run `cmake --bu
 As with Ninja, the output will be: `build/OpenGLViewer`
 
 ## Usage
-In order to export frames, ensure you have a directory named `framesout` on the current working directory.
+Use the arrow keys to rotate the model around the X and Y axes. Use the `w` key to toggle wireframe view, and use `-` and `=` to zoom out and in, respectively.
