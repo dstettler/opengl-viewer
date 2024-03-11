@@ -10,7 +10,11 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_CXX_COMPILER "clang++")
+
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ADDITIONAL_CFLAGS}")
+
+add_definitions(-w)
 
 # We need this on all platforms
 find_package(GLEW REQUIRED)
@@ -22,11 +26,15 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_package(OpenGL REQUIRED)
 endif()
 
-# We'll build glfw ourselves regardless of platform
+# We'll build glfw and glm ourselves regardless of platform
 add_subdirectory(glfw)
 add_subdirectory(glm)
 
-find_package(glm CONFIG REQUIRED)
+include_directories(glm)
+
+message(Added subdirs)
+
+#find_package(glm CONFIG REQUIRED)
 
 include_directories(include)
 include_directories(imgui)
@@ -68,6 +76,8 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_link_libraries(OpenGLViewer GLEW::glew glfw glm::glm)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 target_link_libraries(OpenGLViewer ${X11_LIBRARIES} ${OPENGL_LIBRARIES} GLEW::glew glfw glm::glm)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_link_libraries(OpenGLViewer GLEW::glew glfw glm::glm)
 endif()
 
 # I do not know if the MACOSX properties are proper or not, as I cannot test them.
