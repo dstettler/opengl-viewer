@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <glm/vec3.hpp>
+#include <glm/ext/matrix_float4x4.hpp>
 
 #include <GL/glew.h>
 
@@ -41,6 +42,8 @@ class VAOContainer
     std::vector<glm::vec3> normals;
     std::vector<Face> faces;
 
+    glm::vec3 cameraPos;
+
     TriMode triMode;
 
     // For GPU calculations
@@ -50,6 +53,7 @@ class VAOContainer
     bool wireframe = false;
 
     unsigned int *vao, *vertexShader, *fragmentShader, *shaderProgram;
+    glm::mat4 *projection;
     GLuint *vbo, *ebo;
 
     std::shared_ptr<float[]> lastVertsArrayGenerated;
@@ -73,6 +77,7 @@ class VAOContainer
         unsigned int* vertexShader, 
         unsigned int* fragmentShader,
         unsigned int* shaderProgram,
+        glm::mat4* projection,
         TriMode triMode = TriMode::IndexedTris);
 
     std::shared_ptr<float[]> getVertsArray();
@@ -81,6 +86,10 @@ class VAOContainer
     bool getWireframe() { return wireframe; };
 
     void setWireframe(bool wireframeStatus) { wireframe = wireframeStatus; };
+
+    void regenMatrices();
+
+    glm::vec3* getCamera() { return &cameraPos; };
     
     void scaleMesh(float factor);
     void scaleMeshGpu(float factor);

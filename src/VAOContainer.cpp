@@ -172,10 +172,21 @@ void VAOContainer::init(bool fullDeinit)
         glBindVertexArray(0);
     }
 
+    cameraPos = glm::vec3(0.0f, 0.0f, -5.0f);
+
     // Shader identity rotation matrix
     glm::mat4 transMatrix = glm::mat4(1.0f);
-    unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "transform");
+    unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "modelTransform");
     glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transMatrix));
+
+    glm::mat4 cameraMat = glm::mat4(1.0f);
+    cameraMat = glm::translate(cameraMat, cameraPos);
+    unsigned int cameraLoc = glGetUniformLocation(*shaderProgram, "viewTransform");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(cameraMat));
+    
+    glm::mat4 projMat = *projection;
+    unsigned int projLoc = glGetUniformLocation(*shaderProgram, "proj");
+    glUniformMatrix4fv(projLoc, 1,  GL_FALSE, glm::value_ptr(projMat));
 
     isInit = true;
 }
@@ -187,6 +198,7 @@ void VAOContainer::load(std::string filename,
     unsigned int* vertexShader, 
     unsigned int* fragmentShader,
     unsigned int* shaderProgram,
+    glm::mat4* projection,
     TriMode triMode)
 {
     if (isInit)
@@ -199,6 +211,7 @@ void VAOContainer::load(std::string filename,
     this->fragmentShader = fragmentShader;
     this->shaderProgram = shaderProgram;
     this->triMode = triMode;
+    this->projection = projection;
     readFromFile(filename);
     init();
 }
@@ -328,6 +341,10 @@ void VAOContainer::rotateMesh(float theta, VAOContainer::MeshRotation rotationTy
     unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "transform");
     glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(rotationMatrix));
 
+    glm::mat4 projMat = *projection;
+    unsigned int projLoc = glGetUniformLocation(*shaderProgram, "proj");
+    glUniformMatrix4fv(projLoc, 1,  GL_FALSE, glm::value_ptr(projMat));
+
     // Re-generate and assign arrays
     init(false);    
 }
@@ -335,8 +352,6 @@ void VAOContainer::rotateMesh(float theta, VAOContainer::MeshRotation rotationTy
 void VAOContainer::rotateMeshGpu(float theta, VAOContainer::MeshRotation rotationType)
 {
     // Implement based on axis
-    glm::mat4 rotationMatrix = glm::mat4(1.0f);
-
     if (rotationType == MeshRotation::XAxis)
         existingGpuXTheta += theta;
     else if (rotationType == MeshRotation::YAxis)
@@ -344,32 +359,14 @@ void VAOContainer::rotateMeshGpu(float theta, VAOContainer::MeshRotation rotatio
     else if (rotationType == MeshRotation::ZAxis)
         existingGpuZTheta += theta;
 
-    rotationMatrix = glm::rotate(rotationMatrix, glm::radians(existingGpuXTheta), glm::vec3(1.0, 0.0, 0.0));
-    rotationMatrix = glm::rotate(rotationMatrix, glm::radians(existingGpuYTheta), glm::vec3(0.0, 1.0, 0.0));
-    rotationMatrix = glm::rotate(rotationMatrix, glm::radians(existingGpuZTheta), glm::vec3(1.0, 0.0, 1.0));
-    
-    // Preserve scaling
-    rotationMatrix = glm::scale(rotationMatrix, glm::vec3(existingGpuScaleFactor, existingGpuScaleFactor, existingGpuScaleFactor));
-    
-    unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "transform");
-    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(rotationMatrix));
+    regenMatrices();
 }
 
 void VAOContainer::scaleMeshGpu(float factor)
 {
-    // Implement based on axis
-    glm::mat4 transformMatrix = glm::mat4(1.0f);
     existingGpuScaleFactor *= factor;
 
-    transformMatrix = glm::scale(transformMatrix, glm::vec3(existingGpuScaleFactor, existingGpuScaleFactor, existingGpuScaleFactor));
-
-    // Preserve rotations
-    transformMatrix = glm::rotate(transformMatrix, glm::radians(existingGpuXTheta), glm::vec3(1.0, 0.0, 0.0));
-    transformMatrix = glm::rotate(transformMatrix, glm::radians(existingGpuYTheta), glm::vec3(0.0, 1.0, 0.0));
-    transformMatrix = glm::rotate(transformMatrix, glm::radians(existingGpuZTheta), glm::vec3(1.0, 0.0, 1.0));
-    
-    unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "transform");
-    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transformMatrix));
+    regenMatrices();
 }
 
 void VAOContainer::scaleMesh(float factor)
@@ -382,6 +379,10 @@ void VAOContainer::scaleMesh(float factor)
     unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "transform");
     glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(rotationMatrix));
 
+    glm::mat4 projMat = *projection;
+    unsigned int projLoc = glGetUniformLocation(*shaderProgram, "proj");
+    glUniformMatrix4fv(projLoc, 1,  GL_FALSE, glm::value_ptr(projMat));
+
     // Re-generate and assign arrays
     init(false);
 }
@@ -389,6 +390,31 @@ void VAOContainer::scaleMesh(float factor)
 float cross2D(glm::vec2 a, glm::vec2 b)
 {
     return a.x * b.y - b.x * a.y;
+}
+
+void VAOContainer::regenMatrices()
+{
+    glm::mat4 transformMatrix = glm::mat4(1.0f);
+    
+    // Scaling (uniform)
+    transformMatrix = glm::scale(transformMatrix, glm::vec3(existingGpuScaleFactor, existingGpuScaleFactor, existingGpuScaleFactor));
+
+    // Rotations
+    transformMatrix = glm::rotate(transformMatrix, glm::radians(existingGpuXTheta), glm::vec3(1.0, 0.0, 0.0));
+    transformMatrix = glm::rotate(transformMatrix, glm::radians(existingGpuYTheta), glm::vec3(0.0, 1.0, 0.0));
+    transformMatrix = glm::rotate(transformMatrix, glm::radians(existingGpuZTheta), glm::vec3(1.0, 0.0, 1.0));
+
+    unsigned int transformLoc = glGetUniformLocation(*shaderProgram, "modelTransform");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transformMatrix));
+
+    glm::mat4 cameraMat = glm::mat4(1.0f);
+    cameraMat = glm::translate(cameraMat, cameraPos);
+    unsigned int cameraLoc = glGetUniformLocation(*shaderProgram, "viewTransform");
+    glUniformMatrix4fv(cameraLoc, 1, GL_FALSE, glm::value_ptr(cameraMat));
+
+    glm::mat4 projMat = *projection;
+    unsigned int projLoc = glGetUniformLocation(*shaderProgram, "proj");
+    glUniformMatrix4fv(projLoc, 1,  GL_FALSE, glm::value_ptr(projMat));
 }
 
 std::vector<Face> VAOContainer::triangulateFace(Face givenFace)

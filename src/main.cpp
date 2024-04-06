@@ -2,7 +2,13 @@
 #include <GL/glew.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+
 #include <glm/vec3.hpp>
+#include <glm/ext/matrix_float4x4.hpp>
+#include <glm/common.hpp>
+#include <glm/geometric.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <cmath>
 #include <iostream>
@@ -23,16 +29,22 @@ void processInput(GLFWwindow *window, VAOContainer *container);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-const std::string MODEL_FILENAME = "./data/head.obj";
-const std::string VERTEX_SHADER_FILE = "./shaders/source.vs";
-const std::string FRAGMENT_SHADER_FILE = "./shaders/source.fs";
+const std::string BASE_DIR = "D:/Documents/GitHub/opengl-viewer";
+const std::string MODEL_FILENAME = BASE_DIR + "/data/head.obj";
+const std::string VERTEX_SHADER_FILE = BASE_DIR + "/shaders/source.vs";
+const std::string FRAGMENT_SHADER_FILE = BASE_DIR + "/shaders/source.fs";
+
+const float NEAR = 0.1f;
+const float FAR = 20.0f;
 
 // Latches for movement keys
 bool zoomIn = false, 
     lastZoomIn = false, 
     zoomOut = false, 
-    lastZoomOut = false, 
-    wireframe, 
+    lastZoomOut = false,
+    perspectiveModeEnabled = true,
+    zBufferModeEnabled = false,
+    wireframe,
     lastWireframe = false;
 
 double currentTime = 0, prevTime = 0, fps = 0;
@@ -140,6 +152,13 @@ int main()
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
+    // unsigned int nearLoc = glGetUniformLocation(shaderProgram, "near");
+    // unsigned int farLoc = glGetUniformLocation(shaderProgram, "far");
+    // glUniformMatrix4fv(nearLoc, 1,  GL_FALSE, &NEAR);
+    // glUniformMatrix4fv(farLoc, 1,  GL_FALSE, &FAR);
+
+    glUniform1d(glGetUniformLocation(shaderProgram, "zBufferEnabled"), zBufferModeEnabled);
+
     glEnable(GL_DEPTH_TEST);
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
@@ -157,13 +176,17 @@ int main()
 
     unsigned int VBO, VAO, EBO;
 
+    glm::mat4 projection = glm::mat4(1.0f);
+    float perspectiveProjFOV = 105.0f;
+    projection = glm::perspective(glm::radians(perspectiveProjFOV), ((float) SCR_WIDTH) / ((float) SCR_HEIGHT), NEAR, FAR);
+
     // Read model
-    vaos.load(MODEL_FILENAME, &VAO, &VBO, &EBO, &vertexShader, &fragmentShader, &shaderProgram);
+    vaos.load(MODEL_FILENAME, &VAO, &VBO, &EBO, &vertexShader, &fragmentShader, &shaderProgram, &projection);
 
     // Disable vsync and uncap frames
     glfwSwapInterval(0);
 
-    glDisable(GL_CULL_FACE);    
+    glDisable(GL_CULL_FACE);
 
     // render loop
     // -----------
@@ -197,14 +220,63 @@ int main()
 
                 if (ImGui::Button("Load Selected Model"))
                 {
-                    std::string filepath = "./data/";
+                    std::string filepath = BASE_DIR + "/data/";
                     filepath += models[selectedModel];
                     filepath += ".obj";
-                    vaos.load(filepath, &VAO, &VBO, &EBO, &vertexShader, &fragmentShader, &shaderProgram,
+                    vaos.load(filepath, &VAO, &VBO, &EBO, &vertexShader, &fragmentShader, &shaderProgram, &projection,
                         (mode == 0) ? VAOContainer::TriMode::IndexedTris : VAOContainer::TriMode::SeparateTris
                     );
                 }
             }
+
+            ImGui::Spacing();
+
+            if (ImGui::CollapsingHeader("Perspective Settings"))
+            {
+                if (ImGui::SliderFloat("FOV", &perspectiveProjFOV, 5, 120))
+                {
+                    if (perspectiveModeEnabled)
+                    {
+                        projection = glm::perspective(glm::radians(perspectiveProjFOV), ((float) SCR_WIDTH) / ((float) SCR_HEIGHT), NEAR, FAR);
+                        vaos.regenMatrices();
+                    }
+                }
+
+                if (ImGui::Button("Enable/Disable Perspective"))
+                {
+                    perspectiveModeEnabled = !perspectiveModeEnabled;
+                    if (perspectiveModeEnabled)
+                        projection = glm::perspective(glm::radians(perspectiveProjFOV), ((float) SCR_WIDTH) / ((float) SCR_HEIGHT), NEAR, FAR);
+                    else
+                        projection = glm::ortho(
+                            -((float)SCR_WIDTH) / 2.0f, 
+                            ((float) SCR_WIDTH) / 2.0f, 
+                            ((float) SCR_HEIGHT) / 2.0f, 
+                            -((float) SCR_HEIGHT) / 2.0f, 
+                            0.1f, 1000.0f);
+
+                    vaos.regenMatrices();
+                }
+
+                if (ImGui::Button("Enable/Disable Z-Buffer Mode"))
+                {
+                    zBufferModeEnabled = !zBufferModeEnabled;
+                    unsigned int zBufLoc = glGetUniformLocation(shaderProgram, "zBufferEnabled");
+                    glUniform1i(zBufLoc, (zBufferModeEnabled) ? 1 : 0);
+                    vaos.regenMatrices();
+                }
+
+                if (ImGui::SliderFloat("Camera X", &vaos.getCamera()->x, -15, 15))
+                    vaos.regenMatrices();
+                
+                if (ImGui::SliderFloat("Camera Y", &vaos.getCamera()->y, -15, 15))
+                    vaos.regenMatrices();
+
+                if (ImGui::SliderFloat("Camera Z", &vaos.getCamera()->z, -15, 15))
+                    vaos.regenMatrices();
+
+                ImGui::Text((perspectiveModeEnabled) ? "Perspective On" : "Perspective Off");
+            }  
 
             ImGui::Spacing();
 
