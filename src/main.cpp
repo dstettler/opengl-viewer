@@ -34,6 +34,8 @@ const std::string MODEL_FILENAME = BASE_DIR + "/data/head.obj";
 const std::string VERTEX_SHADER_FILE = BASE_DIR + "/shaders/source.vs";
 const std::string FRAGMENT_SHADER_FILE = BASE_DIR + "/shaders/source.fs";
 
+const float ROTATION_ANGLE = 0.1;
+
 const float NEAR = 0.1f;
 const float FAR = 20.0f;
 
@@ -51,7 +53,10 @@ double currentTime = 0, prevTime = 0, fps = 0;
 
 unsigned int tick = 0;
 
-bool rotateCpu = true;
+bool rotateCpu = false;
+
+glm::vec3 lightPos =  glm::vec3(10.0f,0.0f,10.0f);
+float ambientLight = 1;
 
 void fpsTick()
 {
@@ -286,6 +291,7 @@ int main()
             }
             ImGui::Text((rotateCpu) ? "Using CPU" : "Using GPU");
             ImGui::Text("FPS: %f", fps);
+            ImGui::Text("Theta X: %f", *vaos.getExistingGpuXTheta());
 
             ImGui::EndChild();
         }
@@ -384,11 +390,16 @@ void processInput(GLFWwindow *window, VAOContainer *container)
     {
         if (rotateCpu)
         {
-            container->rotateMesh(-0.1, VAOContainer::MeshRotation::YAxis);
+            container->rotateMesh(-ROTATION_ANGLE, VAOContainer::MeshRotation::YAxis);
         }
         else
         {
-            container->rotateMeshGpu(-0.1, VAOContainer::MeshRotation::YAxis);
+            float angleY, angleZ;
+            float thetaX = *container->getExistingGpuXTheta();
+            angleY = std::abs(std::cos(thetaX));
+            angleZ = std::abs(std::sin(thetaX));
+            container->rotateMeshGpu(-ROTATION_ANGLE * angleY, VAOContainer::MeshRotation::YAxis);
+            container->rotateMeshGpu(ROTATION_ANGLE * angleZ, VAOContainer::MeshRotation::ZAxis);
         }
     }
         
@@ -396,11 +407,11 @@ void processInput(GLFWwindow *window, VAOContainer *container)
     {
         if (rotateCpu)
         {
-            container->rotateMesh(0.1, VAOContainer::MeshRotation::YAxis);
+            container->rotateMesh(ROTATION_ANGLE, VAOContainer::MeshRotation::YAxis);
         }
         else
         {
-            container->rotateMeshGpu(0.1, VAOContainer::MeshRotation::YAxis);
+            container->rotateMeshGpu(ROTATION_ANGLE, VAOContainer::MeshRotation::YAxis);
         }
     }    
     
@@ -408,11 +419,11 @@ void processInput(GLFWwindow *window, VAOContainer *container)
     {
         if (rotateCpu)
         {
-            container->rotateMesh(-0.1, VAOContainer::MeshRotation::XAxis);
+            container->rotateMesh(-ROTATION_ANGLE, VAOContainer::MeshRotation::XAxis);
         }
         else
         {
-            container->rotateMeshGpu(-0.1, VAOContainer::MeshRotation::XAxis);
+            container->rotateMeshGpu(-ROTATION_ANGLE, VAOContainer::MeshRotation::XAxis);
         }
     }
 
@@ -420,11 +431,11 @@ void processInput(GLFWwindow *window, VAOContainer *container)
     {
         if (rotateCpu)
         {
-            container->rotateMesh(0.1, VAOContainer::MeshRotation::XAxis);
+            container->rotateMesh(ROTATION_ANGLE, VAOContainer::MeshRotation::XAxis);
         }
         else
         {
-            container->rotateMeshGpu(0.1, VAOContainer::MeshRotation::XAxis);
+            container->rotateMeshGpu(ROTATION_ANGLE, VAOContainer::MeshRotation::XAxis);
         }
     }
 

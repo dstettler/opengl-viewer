@@ -90,6 +90,8 @@ class VAOContainer
     void regenMatrices();
 
     glm::vec3* getCamera() { return &cameraPos; };
+
+    float* getExistingGpuXTheta() { return &existingGpuXTheta; };
     
     void scaleMesh(float factor);
     void scaleMeshGpu(float factor);
