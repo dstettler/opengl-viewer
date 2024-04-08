@@ -5,6 +5,7 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <map>
 #include <vector>
 
 #include <GL/glew.h>
@@ -127,18 +128,22 @@ void VAOContainer::init(bool fullDeinit)
         glBindVertexArray(*vao);
 
         glBindBuffer(GL_ARRAY_BUFFER, *vbo);
-        glBufferData(GL_ARRAY_BUFFER, verts.size() * 3 * 2 * sizeof(float), lastVertsArrayGenerated.get(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, verts.size() * 9 * sizeof(float), lastVertsArrayGenerated.get(), GL_STATIC_DRAW);
+
+        // position
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        // color
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+        // normal
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(6 * sizeof(float)));
+        glEnableVertexAttribArray(2);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ebo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, faces.size() * 3 * sizeof(unsigned int), lastIndicesArrayGenerated.get(), GL_STATIC_DRAW);
 
-        // position
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        // color
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-
+        
         // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
         glBindBuffer(GL_ARRAY_BUFFER, 0); 
 
@@ -183,10 +188,14 @@ void VAOContainer::init(bool fullDeinit)
     cameraMat = glm::translate(cameraMat, cameraPos);
     unsigned int cameraLoc = glGetUniformLocation(*shaderProgram, "viewTransform");
     glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(cameraMat));
-    
+    unsigned int cameraViewLoc = glGetUniformLocation(*shaderProgram, "viewPos");
+    glUniform3fv(cameraViewLoc, 1, glm::value_ptr(cameraPos));
+
     glm::mat4 projMat = *projection;
     unsigned int projLoc = glGetUniformLocation(*shaderProgram, "proj");
     glUniformMatrix4fv(projLoc, 1,  GL_FALSE, glm::value_ptr(projMat));
+
+    regenLighting();
 
     isInit = true;
 }
@@ -199,6 +208,7 @@ void VAOContainer::load(std::string filename,
     unsigned int* fragmentShader,
     unsigned int* shaderProgram,
     glm::mat4* projection,
+    Light* light,
     TriMode triMode)
 {
     if (isInit)
@@ -211,6 +221,7 @@ void VAOContainer::load(std::string filename,
     this->fragmentShader = fragmentShader;
     this->shaderProgram = shaderProgram;
     this->triMode = triMode;
+    this->light = light;
     this->projection = projection;
     readFromFile(filename);
     init();
@@ -225,7 +236,7 @@ void VAOContainer::drawGlMesh()
 
     glBindVertexArray(*vao);
     if (triMode == TriMode::IndexedTris)
-        glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(faces.size()) * 2 * 3, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(faces.size()) * 3 * 3, GL_UNSIGNED_INT, 0);
     else if (triMode == TriMode::SeparateTris)
         glDrawArrays(GL_TRIANGLES, 0, getNumVerts() * 2);
     glBindVertexArray(0);
@@ -236,26 +247,57 @@ std::shared_ptr<float[]> VAOContainer::getVertsArray()
     if (lastVertsArrayGenerated)
         return lastVertsArrayGenerated;
 
-    std::shared_ptr<float[]> ptr(new float[getNumVerts() * 2]);
+    std::shared_ptr<float[]> ptr(new float[getNumVerts() * 3 * 2]);
     int i = 0;
     float r, g, b;
     r = 1.0f;
     g = 0.0f;
     b = 0.0f;
 
+    // { vertex: [total, count] }
+    std::map<int, std::pair<glm::vec3, unsigned int>> vertexNormals;
+    for (Face f : faces)
+    {
+        for (Face::Index index : f.indices)
+        {
+            auto iter = vertexNormals.find(index.vertex);
+            if (iter != vertexNormals.end())
+            {
+                iter->second.first += normals[index.normal];
+                iter->second.second++;
+            }
+            else
+                vertexNormals.emplace(index.vertex, std::pair<glm::vec3, unsigned int>(normals[index.normal], 1));
+        }
+    }
+
     if (triMode == TriMode::IndexedTris)
     {
-        for (glm::vec3 vec : verts)
+        for (int j = 0; j  < verts.size(); j++)
         {
+            glm::vec3 vec = verts[j];
             // Vert pos
             ptr[i++] = vec.x;
             ptr[i++] = vec.y;
             ptr[i++] = vec.z;
 
             // Vert color
-            ptr[i++] = r;
-            ptr[i++] = g;
-            ptr[i++] = b;
+            // ptr[i++] = r;
+            // ptr[i++] = g;
+            // ptr[i++] = b;
+
+            ptr[i++] = 0.2588f;
+            ptr[i++] = 0.5294f;
+            ptr[i++] = 0.9607f;
+
+            // Calculate vertex normal from average
+            glm::vec3 avg = vertexNormals[j].first;
+            avg /= vertexNormals[j].second;
+
+            ptr[i++] = avg.x;
+            ptr[i++] = avg.y;
+            ptr[i++] = avg.z;
+            
 
             float tempR = r;
             r = b;
@@ -411,10 +453,21 @@ void VAOContainer::regenMatrices()
     cameraMat = glm::translate(cameraMat, cameraPos);
     unsigned int cameraLoc = glGetUniformLocation(*shaderProgram, "viewTransform");
     glUniformMatrix4fv(cameraLoc, 1, GL_FALSE, glm::value_ptr(cameraMat));
+    unsigned int cameraViewLoc = glGetUniformLocation(*shaderProgram, "viewPos");
+    glUniform3fv(cameraViewLoc, 1, glm::value_ptr(cameraPos));
 
     glm::mat4 projMat = *projection;
     unsigned int projLoc = glGetUniformLocation(*shaderProgram, "proj");
     glUniformMatrix4fv(projLoc, 1,  GL_FALSE, glm::value_ptr(projMat));
+}
+
+void VAOContainer::regenLighting()
+{
+    glUniform3fv(glGetUniformLocation(*shaderProgram, "lightPos"), 1, glm::value_ptr(light->lightPos));
+    glUniform1i(glGetUniformLocation(*shaderProgram, "lightingMode"), light->lightMode);
+    glUniform1f(glGetUniformLocation(*shaderProgram, "ambientLight"), light->ambientLight);
+    glUniform1f(glGetUniformLocation(*shaderProgram, "materialShine"), (float)light->materialShine);
+    glUniform1f(glGetUniformLocation(*shaderProgram, "specularStrength"), light->specularStrength);
 }
 
 std::vector<Face> VAOContainer::triangulateFace(Face givenFace)

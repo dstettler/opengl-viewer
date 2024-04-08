@@ -21,6 +21,16 @@ struct Face
     std::vector<Index> indices;
 };
 
+struct Light
+{
+    glm::vec3 lightPos;
+    float ambientLight;
+    float specularStrength;
+    int materialShine;
+
+    int lightMode;
+};
+
 class VAOContainer
 {
     public:
@@ -54,6 +64,8 @@ class VAOContainer
 
     unsigned int *vao, *vertexShader, *fragmentShader, *shaderProgram;
     glm::mat4 *projection;
+    Light *light;
+
     GLuint *vbo, *ebo;
 
     std::shared_ptr<float[]> lastVertsArrayGenerated;
@@ -78,6 +90,7 @@ class VAOContainer
         unsigned int* fragmentShader,
         unsigned int* shaderProgram,
         glm::mat4* projection,
+        Light* light,
         TriMode triMode = TriMode::IndexedTris);
 
     std::shared_ptr<float[]> getVertsArray();
@@ -88,6 +101,7 @@ class VAOContainer
     void setWireframe(bool wireframeStatus) { wireframe = wireframeStatus; };
 
     void regenMatrices();
+    void regenLighting();
 
     glm::vec3* getCamera() { return &cameraPos; };
 

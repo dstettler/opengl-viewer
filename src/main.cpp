@@ -55,8 +55,7 @@ unsigned int tick = 0;
 
 bool rotateCpu = false;
 
-glm::vec3 lightPos =  glm::vec3(10.0f,0.0f,10.0f);
-float ambientLight = 1;
+Light light;
 
 void fpsTick()
 {
@@ -73,6 +72,12 @@ void fpsTick()
 
 int main()
 {
+    light.ambientLight = 1;
+    light.ambientLight = 0;
+    light.lightPos = glm::vec3(10.0f,0.0f,10.0f);
+    light.materialShine = 32;
+    light.specularStrength = 1.0f;
+
     VAOContainer vaos;
 
     // glfw: initialize and configure
@@ -186,7 +191,7 @@ int main()
     projection = glm::perspective(glm::radians(perspectiveProjFOV), ((float) SCR_WIDTH) / ((float) SCR_HEIGHT), NEAR, FAR);
 
     // Read model
-    vaos.load(MODEL_FILENAME, &VAO, &VBO, &EBO, &vertexShader, &fragmentShader, &shaderProgram, &projection);
+    vaos.load(MODEL_FILENAME, &VAO, &VBO, &EBO, &vertexShader, &fragmentShader, &shaderProgram, &projection, &light);
 
     // Disable vsync and uncap frames
     glfwSwapInterval(0);
@@ -215,9 +220,9 @@ int main()
 
             if (ImGui::CollapsingHeader("Select Model"))
             {
-                const char* models[] = { "head", "pawn", "cube_tri", "eagle_tri" };
+                const char* models[] = { "head", "pawn", "cube_tri", "eagle_tri", "sphere_tri" };
                 static int selectedModel = 1;
-                ImGui::ListBox("Model Select", &selectedModel, models, IM_ARRAYSIZE(models), 4);
+                ImGui::ListBox("Model Select", &selectedModel, models, IM_ARRAYSIZE(models), sizeof(models)/sizeof(*models));
                 
                 static int mode = 0;
                 ImGui::RadioButton("Indexed Tris", &mode, 0); ImGui::SameLine();
@@ -228,7 +233,7 @@ int main()
                     std::string filepath = BASE_DIR + "/data/";
                     filepath += models[selectedModel];
                     filepath += ".obj";
-                    vaos.load(filepath, &VAO, &VBO, &EBO, &vertexShader, &fragmentShader, &shaderProgram, &projection,
+                    vaos.load(filepath, &VAO, &VBO, &EBO, &vertexShader, &fragmentShader, &shaderProgram, &projection, &light,
                         (mode == 0) ? VAOContainer::TriMode::IndexedTris : VAOContainer::TriMode::SeparateTris
                     );
                 }
@@ -282,6 +287,64 @@ int main()
 
                 ImGui::Text((perspectiveModeEnabled) ? "Perspective On" : "Perspective Off");
             }  
+
+            ImGui::Spacing();
+
+            if (ImGui::CollapsingHeader("Lighting"))
+            {
+                if (ImGui::RadioButton("No Lighting", &light.lightMode, 0))
+                    vaos.regenLighting();
+                ImGui::SameLine();
+
+                if (ImGui::RadioButton("Phong", &light.lightMode, 1))
+                    vaos.regenLighting();
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Gouraud", &light.lightMode, 2))
+                    vaos.regenLighting();
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Flat", &light.lightMode, 3))
+                    vaos.regenLighting();
+
+                if (ImGui::SliderFloat("Light X", &light.lightPos.x, -15, 15))
+                    vaos.regenLighting();
+                
+                if (ImGui::SliderFloat("Light Y", &light.lightPos.y, -15, 15))
+                    vaos.regenLighting();
+
+                if (ImGui::SliderFloat("Light Z", &light.lightPos.z, -15, 15))
+                    vaos.regenLighting();
+
+                if (ImGui::SliderFloat("Ambient Light", &light.ambientLight, 0, 1.1))
+                    vaos.regenLighting();
+                    
+                if (ImGui::SliderFloat("Specular Strength", &light.specularStrength, 0, 15))
+                    vaos.regenLighting();
+
+                ImGui::Text("Specular Material Shine:"); ImGui::SameLine();
+                if (ImGui::RadioButton("2", &light.materialShine, 2))
+                    vaos.regenLighting();
+                ImGui::SameLine();
+                if (ImGui::RadioButton("4", &light.materialShine, 4))
+                    vaos.regenLighting();
+                ImGui::SameLine();
+                if (ImGui::RadioButton("8", &light.materialShine, 8))
+                    vaos.regenLighting();
+                ImGui::SameLine();
+                if (ImGui::RadioButton("16", &light.materialShine, 16))
+                    vaos.regenLighting();
+                ImGui::SameLine();
+                if (ImGui::RadioButton("32", &light.materialShine, 32))
+                    vaos.regenLighting();
+                ImGui::SameLine();
+                if (ImGui::RadioButton("64", &light.materialShine, 64))
+                    vaos.regenLighting();
+                ImGui::SameLine();
+                if (ImGui::RadioButton("128", &light.materialShine, 128))
+                    vaos.regenLighting();
+                ImGui::SameLine();
+                if (ImGui::RadioButton("256", &light.materialShine, 256))
+                    vaos.regenLighting();
+            }
 
             ImGui::Spacing();
 
@@ -394,12 +457,13 @@ void processInput(GLFWwindow *window, VAOContainer *container)
         }
         else
         {
-            float angleY, angleZ;
-            float thetaX = *container->getExistingGpuXTheta();
-            angleY = std::abs(std::cos(thetaX));
-            angleZ = std::abs(std::sin(thetaX));
-            container->rotateMeshGpu(-ROTATION_ANGLE * angleY, VAOContainer::MeshRotation::YAxis);
-            container->rotateMeshGpu(ROTATION_ANGLE * angleZ, VAOContainer::MeshRotation::ZAxis);
+            // float angleY, angleZ;
+            // float thetaX = *container->getExistingGpuXTheta();
+            // angleY = std::abs(std::cos(thetaX));
+            // angleZ = std::abs(std::sin(thetaX));
+            // container->rotateMeshGpu(-ROTATION_ANGLE * angleY, VAOContainer::MeshRotation::YAxis);
+            // container->rotateMeshGpu(ROTATION_ANGLE * angleZ, VAOContainer::MeshRotation::ZAxis);
+            container->rotateMeshGpu(-ROTATION_ANGLE, VAOContainer::MeshRotation::YAxis);
         }
     }
         
