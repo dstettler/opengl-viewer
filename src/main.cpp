@@ -31,8 +31,8 @@ const unsigned int SCR_HEIGHT = 600;
 
 const std::string BASE_DIR = "D:/Documents/GitHub/opengl-viewer";
 const std::string MODEL_FILENAME = BASE_DIR + "/data/head.obj";
-const std::string VERTEX_SHADER_FILE = BASE_DIR + "/shaders/source.vs";
-const std::string FRAGMENT_SHADER_FILE = BASE_DIR + "/shaders/source.fs";
+const std::string VERTEX_SHADER_FILE = BASE_DIR + "/shaders/vertex.glsl";
+const std::string FRAGMENT_SHADER_FILE = BASE_DIR + "/shaders/fragment.glsl";
 
 const float ROTATION_ANGLE = 0.1;
 
@@ -46,6 +46,7 @@ bool zoomIn = false,
     lastZoomOut = false,
     perspectiveModeEnabled = true,
     zBufferModeEnabled = false,
+    zPrimeEnabled = false,
     wireframe,
     lastWireframe = false;
 
@@ -53,7 +54,10 @@ double currentTime = 0, prevTime = 0, fps = 0;
 
 unsigned int tick = 0;
 
+float zBufferFar = 37.927f, zBufferNear = 0.37f;
+
 bool rotateCpu = false;
+float zBufferDepthK = 0.2;
 
 Light light;
 
@@ -168,6 +172,8 @@ int main()
     // glUniformMatrix4fv(farLoc, 1,  GL_FALSE, &FAR);
 
     glUniform1d(glGetUniformLocation(shaderProgram, "zBufferEnabled"), zBufferModeEnabled);
+    glUniform1d(glGetUniformLocation(shaderProgram, "zPrimeEnabled"), zPrimeEnabled);
+    glUniform1f(glGetUniformLocation(shaderProgram, "zBufferDepthK"), zBufferDepthK);
 
     glEnable(GL_DEPTH_TEST);
 
@@ -273,6 +279,25 @@ int main()
                     zBufferModeEnabled = !zBufferModeEnabled;
                     unsigned int zBufLoc = glGetUniformLocation(shaderProgram, "zBufferEnabled");
                     glUniform1i(zBufLoc, (zBufferModeEnabled) ? 1 : 0);
+                    vaos.regenMatrices();
+                }
+                if (ImGui::Button("Enable/Disable Z' for Z-Buffer"))
+                {
+                    zPrimeEnabled = !zPrimeEnabled;
+                    unsigned int zPrimLoc = glGetUniformLocation(shaderProgram, "zPrimeEnabled");
+                    glUniform1i(zPrimLoc, (zPrimeEnabled) ? 1 : 0);
+                    vaos.regenMatrices();
+                }
+                if (ImGui::SliderFloat("Depth Far", &zBufferFar, 0, 100))
+                {
+                    unsigned int zBufLoc = glGetUniformLocation(shaderProgram, "far");
+                    glUniform1f(zBufLoc, zBufferFar);
+                    vaos.regenMatrices();
+                }
+                if (ImGui::SliderFloat("Depth Near", &zBufferNear, 0, 1))
+                {
+                    unsigned int zBufLoc = glGetUniformLocation(shaderProgram, "near");
+                    glUniform1f(zBufLoc, zBufferNear);
                     vaos.regenMatrices();
                 }
 

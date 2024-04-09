@@ -7,11 +7,12 @@ in vec3 fragPos;
 in vec3 normal;
 
 uniform float near = 0.1;
-uniform float far = 1.0;
+uniform float far = 100.0;
 
 // 0 = uniform, 1 = phong, 2 = gouraud, 3 = flat
 uniform int lightingMode;
 uniform int zBufferEnabled;
+uniform int zPrimeEnabled;
 
 uniform vec3 lightPos;
 uniform float ambientLight;
@@ -30,8 +31,13 @@ float GetDepth(float depth)
 void main()
 {
     if (zBufferEnabled == 1) {
-        float depth = GetDepth(gl_FragCoord.z);
-        FragColor = vec4(vec3(depth), 1.0);
+        if (zPrimeEnabled == 0) {
+            float depth = GetDepth(fragPos.z);
+            FragColor = vec4(vec3(depth), 1.0);
+        } else {
+            float depth = GetDepth(gl_FragCoord.z);
+            FragColor = vec4(vec3(depth), 1.0);
+        }
     } else {
         // uniform and gouraud will both be the same, so only phong needs to be specified
         if (lightingMode == 1) {
